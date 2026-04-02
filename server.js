@@ -191,7 +191,7 @@ app.post("/subscribe/checkout", authenticateToken, async (req, res) => {
       subscription_data: {
         trial_period_days: 3,
       },
-      success_url: `${process.env.FRONTEND_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${process.env.FRONTEND_URL}/?checkout=success`,
       cancel_url: `${process.env.FRONTEND_URL}/`,
       metadata: {
         userId: user.id,

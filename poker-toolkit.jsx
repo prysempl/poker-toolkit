@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 
+const API_URL = "https://poker-toolkit-production.up.railway.app";
+
 const SUITS = ["♠", "♥", "♦", "♣"];
 const RANKS = ["2", "3", "4", "5", "6", "7", "8", "9", "T", "J", "Q", "K", "A"];
 const RANK_NAMES = { "2":"2","3":"3","4":"4","5":"5","6":"6","7":"7","8":"8","9":"9","T":"10","J":"J","Q":"Q","K":"K","A":"A" };
@@ -1224,12 +1226,29 @@ const Paywall = ({ onSubscribe, onRestore }) => {
   const [annual, setAnnual] = useState(false);
   const [processing, setProcessing] = useState(false);
 
-  const handleSubscribe = () => {
+  const handleSubscribe = async () => {
     setProcessing(true);
-    setTimeout(() => {
+    try {
+      const token = localStorage.getItem("poker_token");
+      const res = await fetch(`${API_URL}/subscribe/checkout`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ plan: annual ? "annual" : "monthly" }),
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        alert(data.error || "Failed to start checkout");
+        setProcessing(false);
+      }
+    } catch (err) {
+      alert("Failed to connect to server. Please try again.");
       setProcessing(false);
-      onSubscribe();
-    }, 1800);
+    }
   };
 
   const features = [
@@ -1401,23 +1420,232 @@ const Paywall = ({ onSubscribe, onRestore }) => {
   );
 };
 
+// ─── AUTH SCREEN ───
+const AuthScreen = ({ onAuth }) => {
+  const [isLogin, setIsLogin] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      const endpoint = isLogin ? "/auth/login" : "/auth/signup";
+      const res = await fetch(`${API_URL}${endpoint}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Something went wrong");
+        setLoading(false);
+        return;
+      }
+      localStorage.setItem("poker_token", data.token);
+      onAuth(data.user);
+    } catch (err) {
+      setError("Failed to connect to server");
+      setLoading(false);
+    }
+  };
+
+  const inputStyle = {
+    width: "100%",
+    padding: "12px 16px",
+    borderRadius: "12px",
+    border: "1px solid rgba(255,255,255,0.1)",
+    background: "rgba(255,255,255,0.05)",
+    color: "#d0c8b8",
+    fontSize: "14px",
+    fontFamily: "'DM Sans', sans-serif",
+    outline: "none",
+    marginBottom: "12px",
+    boxSizing: "border-box",
+  };
+
+  return (
+    <div style={{
+      minHeight: "100vh",
+      background: "linear-gradient(160deg, #0a1a12 0%, #0d1f17 30%, #0a1610 60%, #0f1a14 100%)",
+      fontFamily: "'DM Sans', sans-serif",
+      color: "#d0c8b8",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: "20px",
+    }}>
+      <div style={{ maxWidth: "380px", width: "100%" }}>
+        <div style={{ textAlign: "center", marginBottom: "32px" }}>
+          <div style={{ fontSize: "40px", marginBottom: "8px" }}>♠</div>
+          <h1 style={{
+            fontSize: "36px", fontWeight: 900, fontFamily: "'Playfair Display', serif",
+            background: "linear-gradient(135deg, #f0d78c 0%, #c9a84c 50%, #f0d78c 100%)",
+            WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+            lineHeight: 1.1, marginBottom: "8px",
+          }}>
+            Poker Toolkit
+          </h1>
+          <div style={{ color: "#6a7a6a", fontSize: "14px" }}>
+            {isLogin ? "Welcome back" : "Create your account"}
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit}>
+          <input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            style={inputStyle}
+          />
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            minLength={6}
+            style={inputStyle}
+          />
+
+          {error && (
+            <div style={{ color: "#e74c3c", fontSize: "13px", marginBottom: "12px", textAlign: "center" }}>
+              {error}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading}
+            style={{
+              width: "100%",
+              padding: "14px",
+              borderRadius: "12px",
+              background: "linear-gradient(135deg, #c9a84c, #a08030)",
+              color: "#1a1a2e",
+              fontWeight: 800,
+              fontSize: "15px",
+              fontFamily: "'Playfair Display', serif",
+              border: "none",
+              cursor: loading ? "not-allowed" : "pointer",
+              opacity: loading ? 0.7 : 1,
+              boxShadow: "0 4px 16px rgba(201,168,76,0.3)",
+              marginBottom: "16px",
+            }}
+          >
+            {loading ? "Please wait..." : isLogin ? "Log In" : "Sign Up"}
+          </button>
+        </form>
+
+        <div style={{ textAlign: "center" }}>
+          <button
+            onClick={() => { setIsLogin(!isLogin); setError(""); }}
+            style={{
+              background: "none",
+              border: "none",
+              color: "#6a7a6a",
+              fontSize: "13px",
+              cursor: "pointer",
+              fontFamily: "'DM Sans', sans-serif",
+              textDecoration: "underline",
+            }}
+          >
+            {isLogin ? "Don't have an account? Sign up" : "Already have an account? Log in"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ─── MAIN APP ───
 const FREE_TABS = ["rankings", "glossary"];
 
 export default function PokerToolkit() {
   const [tab, setTab] = useState("preflop");
   const [loaded, setLoaded] = useState(false);
+  const [user, setUser] = useState(null);
+  const [authChecked, setAuthChecked] = useState(false);
   const [subscribed, setSubscribed] = useState(false);
   const [showPaywall, setShowPaywall] = useState(true);
   const [showUpgrade, setShowUpgrade] = useState(false);
 
+  // Check for existing session on mount
   useEffect(() => {
     const link = document.createElement("link");
     link.href = "https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;900&family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap";
     link.rel = "stylesheet";
     document.head.appendChild(link);
-    setTimeout(() => setLoaded(true), 100);
+
+    // Handle Stripe checkout redirect
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("checkout") === "success") {
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+
+    const token = localStorage.getItem("poker_token");
+    if (token) {
+      fetch(`${API_URL}/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((res) => res.ok ? res.json() : Promise.reject())
+        .then((data) => {
+          setUser(data.user || data);
+          const status = data.user?.subscriptionStatus || data.subscriptionStatus;
+          if (status === "active" || status === "trialing") {
+            setSubscribed(true);
+            setShowPaywall(false);
+          } else if (params.get("checkout") === "success") {
+            // Webhook may not have fired yet — poll briefly
+            const poll = setInterval(() => {
+              fetch(`${API_URL}/subscribe/status`, {
+                headers: { Authorization: `Bearer ${token}` },
+              })
+                .then((r) => r.json())
+                .then((s) => {
+                  if (s.isPro) {
+                    setSubscribed(true);
+                    setShowPaywall(false);
+                    clearInterval(poll);
+                  }
+                });
+            }, 2000);
+            setTimeout(() => clearInterval(poll), 20000);
+          }
+        })
+        .catch(() => {
+          localStorage.removeItem("poker_token");
+        })
+        .finally(() => {
+          setAuthChecked(true);
+          setTimeout(() => setLoaded(true), 100);
+        });
+    } else {
+      setAuthChecked(true);
+      setTimeout(() => setLoaded(true), 100);
+    }
   }, []);
+
+  const handleAuth = (userData) => {
+    setUser(userData);
+    const status = userData.subscriptionStatus;
+    if (status === "active" || status === "trialing") {
+      setSubscribed(true);
+      setShowPaywall(false);
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("poker_token");
+    setUser(null);
+    setSubscribed(false);
+    setShowPaywall(true);
+  };
 
   const handleSubscribe = () => {
     setSubscribed(true);
@@ -1430,6 +1658,12 @@ export default function PokerToolkit() {
     setSubscribed(false);
     setTab("rankings");
   };
+
+  if (!authChecked) return null;
+
+  if (!user) {
+    return <AuthScreen onAuth={handleAuth} />;
+  }
 
   const handleTabClick = (key) => {
     if (!subscribed && !FREE_TABS.includes(key)) {
