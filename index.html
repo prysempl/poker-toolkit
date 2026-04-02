@@ -25,8 +25,7 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
 input[type="number"] { -moz-appearance: textfield; }
 
 /* Tabs */
-.tab-bar { display: flex; justify-content: center; overflow-x: auto; border-bottom: 1px solid rgba(255,255,255,0.06); margin-bottom: 20px; -webkit-overflow-scrolling: touch; }
-.tab-bar::-webkit-scrollbar { display: none; }
+.tab-bar { display: flex; justify-content: center; flex-wrap: wrap; gap: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.06); margin-bottom: 20px; }
 .tab-btn { position: relative; padding: 10px 10px; white-space: nowrap; background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; color: #8a9a8a; font-family: 'Playfair Display', serif; font-size: 11px; font-weight: 500; letter-spacing: 0.3px; transition: all 0.3s; }
 .tab-btn.active { color: #f0d78c; border-bottom-color: #c9a84c; background: rgba(201,168,76,0.08); font-weight: 700; }
 .tab-btn .lock { position: absolute; top: -1px; right: 0; width: 14px; height: 14px; border-radius: 50%; background: linear-gradient(135deg, #c9a84c, #a08030); font-size: 7px; color: #1a1a2e; display: flex; align-items: center; justify-content: center; font-weight: 900; }
@@ -79,6 +78,36 @@ input[type="number"] { -moz-appearance: textfield; }
 
 /* Hide content */
 .hidden { display: none; }
+
+/* Quiz & Daily Challenge */
+.quiz-option { width:100%; border-radius:12px; padding:14px 16px; background:rgba(255,255,255,0.03); border:2px solid rgba(255,255,255,0.08); cursor:pointer; text-align:left; transition:all 0.3s; display:flex; align-items:center; gap:12px; }
+.quiz-option:hover { border-color:rgba(201,168,76,0.3); background:rgba(201,168,76,0.05); transform:translateX(4px); }
+.quiz-option.correct { border-color:#27ae60; background:rgba(39,174,96,0.12); }
+.quiz-option.wrong { border-color:#c0392b; background:rgba(192,57,43,0.12); }
+.quiz-option .opt-letter { width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; flex-shrink:0; background:rgba(255,255,255,0.06); color:#8a9a8a; transition:all 0.3s; }
+.quiz-option.correct .opt-letter { background:rgba(39,174,96,0.3); color:#27ae60; }
+.quiz-option.wrong .opt-letter { background:rgba(192,57,43,0.3); color:#c0392b; }
+.streak-badge { display:inline-flex; align-items:center; gap:4px; border-radius:20px; padding:4px 12px; font-size:12px; font-weight:700; }
+
+/* Card flip */
+@keyframes cardFlip { 0% { transform:rotateY(0); } 50% { transform:rotateY(90deg); } 100% { transform:rotateY(0); } }
+.card-flip { animation: cardFlip 0.5s ease; }
+
+/* Confetti */
+@keyframes confettiFall { 0% { transform:translateY(-10px) rotate(0); opacity:1; } 100% { transform:translateY(120px) rotate(720deg); opacity:0; } }
+.confetti { position:absolute; width:8px; height:8px; border-radius:2px; animation:confettiFall 1.2s ease forwards; pointer-events:none; }
+
+/* Progress ring */
+@keyframes progressFill { from { stroke-dashoffset:157; } }
+.progress-ring { transition: stroke-dashoffset 0.6s ease; }
+
+/* Pulse glow for streaks */
+@keyframes pulseGlow { 0%,100% { box-shadow:0 0 8px rgba(201,168,76,0.2); } 50% { box-shadow:0 0 20px rgba(201,168,76,0.5); } }
+.streak-glow { animation: pulseGlow 2s ease infinite; }
+
+/* Slide in */
+@keyframes slideUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+.slide-up { animation: slideUp 0.4s ease; }
 </style>
 </head>
 <body>
@@ -178,6 +207,67 @@ const GLOSS = [
   ]},
 ];
 
+// ─── QUIZ SCENARIOS ───
+const QUIZ_SCENARIOS = [
+  {id:1, c1:"A",s1:"♠",c2:"K",s2:"♠",pos:"UTG",facing:false,table:6,
+   q:"You're UTG with A♠K♠ at a 6-max table. Folded to you. What do you do?",
+   options:["Fold","Call","Raise 2.5x","Limp"],correct:2,
+   explain:"AKs is a premium hand. Always open-raise from any position, including UTG."},
+  {id:2, c1:"7",s1:"♥",c2:"2",s2:"♣",pos:"CO",facing:true,table:6,
+   q:"You're in the CO with 7♥2♣. Someone raises from UTG. What do you do?",
+   options:["3-Bet","Call","Fold","All-in"],correct:2,
+   explain:"72o is the worst hand in poker. Always fold, especially facing a raise from early position."},
+  {id:3, c1:"J",s1:"♦",c2:"T",s2:"♦",pos:"BTN",facing:true,table:6,
+   q:"You're on the BTN with J♦T♦. CO raises. What's your best play?",
+   options:["Fold","Call","3-Bet","Fold and wait"],correct:1,
+   explain:"JTs is a strong suited connector with great playability in position. Calling keeps in their weaker hands."},
+  {id:4, c1:"A",s1:"♥",c2:"A",s2:"♦",pos:"SB",facing:true,table:6,
+   q:"You're in the SB with A♥A♦. BTN raises. What do you do?",
+   options:["Call to trap","3-Bet","Fold","Just call and see a flop"],correct:1,
+   explain:"Always 3-bet AA. Trapping by flatting lets the BB come in cheap and reduces your edge."},
+  {id:5, c1:"Q",s1:"♣",c2:"J",s2:"♣",pos:"MP",facing:false,table:9,
+   q:"You're MP at a 9-max table with Q♣J♣. Folded to you.",
+   options:["Fold","Raise 2.5x","Limp","Raise 4x"],correct:1,
+   explain:"QJs is a strong suited hand. Open-raise for value and to take initiative."},
+  {id:6, c1:"5",s1:"♠",c2:"5",s2:"♥",pos:"CO",facing:true,table:6,
+   q:"You're CO with 5♠5♥. UTG raises 3x. What do you do?",
+   options:["3-Bet","Fold","Call to set-mine","All-in"],correct:2,
+   explain:"Small pairs are great for set-mining in position. You need ~15:1 implied odds, which is typical at 100bb deep."},
+  {id:7, c1:"A",s1:"♦",c2:"5",s2:"♦",pos:"BTN",facing:false,table:6,
+   q:"BTN with A♦5♦, folded to you. What's your play?",
+   options:["Fold","Raise","Limp","Check"],correct:1,
+   explain:"A5s is a profitable open from the button. Suited ace has nut flush potential and good fold equity."},
+  {id:8, c1:"K",s1:"♠",c2:"Q",s2:"♠",pos:"BB",facing:true,table:6,
+   q:"You're BB with K♠Q♠. CO raises, BTN calls. What do you do?",
+   options:["Fold","Call","3-Bet squeeze","Check"],correct:2,
+   explain:"KQs is strong enough to squeeze here. A 3-bet isolates against the raiser and potentially wins the pot preflop."},
+  {id:9, c1:"9",s1:"♥",c2:"8",s2:"♥",pos:"CO",facing:false,table:6,
+   q:"You're CO with 9♥8♥. Folded to you.",
+   options:["Fold","Raise","Limp","Call"],correct:1,
+   explain:"98s is a profitable open from the CO. Good connectivity and suited gives it plenty of playability."},
+  {id:10, c1:"K",s1:"♥",c2:"4",s2:"♣",pos:"UTG",facing:false,table:9,
+   q:"UTG at a 9-max table with K♥4♣. Folded to you.",
+   options:["Raise","Call","Fold","Limp"],correct:2,
+   explain:"K4o is too weak to open from UTG at a full ring table. You'll be dominated too often."},
+  {id:11, c1:"T",s1:"♠",c2:"T",s2:"♦",pos:"MP",facing:true,table:6,
+   q:"MP with T♠T♦. UTG raises. What do you do?",
+   options:["3-Bet","Call","Fold","All-in"],correct:1,
+   explain:"TT is strong enough to flat call and set-mine. 3-betting works too, but calling keeps dominated hands in."},
+  {id:12, c1:"A",s1:"♣",c2:"8",s2:"♣",pos:"SB",facing:false,table:6,
+   q:"SB with A♣8♣. Folded to you. What's your play?",
+   options:["Fold","Complete/Limp","Raise 3x","Check"],correct:2,
+   explain:"A8s is a clear raise from the SB when folded to you. Suited ace with decent kicker plays well heads-up."},
+];
+
+// ─── DAILY CHALLENGE ───
+function getDailyChallenge(){
+  const today = new Date();
+  const dayOfYear = Math.floor((today - new Date(today.getFullYear(),0,0)) / 86400000);
+  const idx = dayOfYear % QUIZ_SCENARIOS.length;
+  return QUIZ_SCENARIOS[idx];
+}
+function getDailyKey(){ return "poker_daily_"+new Date().toISOString().slice(0,10); }
+
 const API_URL = "https://poker-toolkit-production.up.railway.app";
 
 // ─── AUTH ───
@@ -275,7 +365,7 @@ function handleLogout() {
 
 // ─── STATE ───
 let state = {
-  tab: "preflop",
+  tab: "daily",
   subscribed: false,
   showPaywall: true,
   showUpgrade: false,
@@ -297,9 +387,13 @@ let state = {
   gl_open:"Positions", gl_search:"",
   // Paywall
   pw_annual:false, pw_processing:false,
+  // Quiz
+  qz_current:0, qz_answered:null, qz_score:0, qz_total:0, qz_streak:0, qz_bestStreak:0, qz_done:false, qz_history:[],
+  // Daily
+  daily_answered:null, daily_completed:false,
 };
 
-const FREE_TABS = ["rankings","glossary"];
+const FREE_TABS = ["rankings","glossary","daily"];
 
 function setState(updates, skipRender) {
   Object.assign(state, updates);
@@ -451,6 +545,7 @@ function renderHeader(){
 
 function renderTabs(){
   const tabs = [
+    {k:"daily",l:"Daily",i:"🔥",pro:false},{k:"quiz",l:"Quiz",i:"❓",pro:true},
     {k:"preflop",l:"Preflop",i:"🧠",pro:true},{k:"odds",l:"Odds",i:"🎲",pro:true},
     {k:"hand",l:"Hand",i:"🃏",pro:true},{k:"position",l:"Position",i:"🎯",pro:true},
     {k:"rankings",l:"Rankings",i:"👑",pro:false},{k:"bankroll",l:"Bankroll",i:"💰",pro:true},
@@ -466,6 +561,8 @@ function renderTabs(){
 function renderContent(){
   if(state.showUpgrade&&!state.subscribed) return renderUpgrade();
   switch(state.tab){
+    case "daily": return renderDaily();
+    case "quiz": return renderQuiz();
     case "preflop": return renderPreflop();
     case "odds": return renderOdds();
     case "hand": return renderHandEval();
@@ -489,6 +586,171 @@ function renderUpgrade(){
 }
 
 // ─── TAB RENDERERS ───
+function renderDaily(){
+  const ch = getDailyChallenge();
+  const s = state;
+  const saved = localStorage.getItem(getDailyKey());
+  const completed = saved !== null;
+  const savedAnswer = completed ? parseInt(saved) : null;
+  const isCorrect = savedAnswer === ch.correct;
+  // Load streak from localStorage
+  const streakData = JSON.parse(localStorage.getItem("poker_streak")||'{"count":0,"best":0,"lastDate":""}');
+  const today = new Date().toISOString().slice(0,10);
+  const yesterday = new Date(Date.now()-86400000).toISOString().slice(0,10);
+  const streakActive = streakData.lastDate === today || streakData.lastDate === yesterday;
+
+  return `<div class="slide-up" style="display:flex;flex-direction:column;gap:20px;padding-bottom:40px">
+    <div style="text-align:center;padding:16px 0">
+      <div style="font-size:11px;color:#5a6a5a;text-transform:uppercase;letter-spacing:2px;margin-bottom:4px">Daily Challenge</div>
+      <div style="font-size:24px;font-weight:900;font-family:'Playfair Display',serif;color:#f0d78c">${new Date().toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'})}</div>
+      <div style="display:flex;justify-content:center;gap:12px;margin-top:12px">
+        <span class="streak-badge ${streakActive&&streakData.count>0?'streak-glow':''}" style="background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.25);color:#f0d78c">🔥 ${streakData.count} day streak</span>
+        <span class="streak-badge" style="background:rgba(39,174,96,0.12);border:1px solid rgba(39,174,96,0.25);color:#27ae60">⭐ Best: ${streakData.best}</span>
+      </div>
+    </div>
+
+    <div class="panel" style="position:relative;overflow:hidden">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+        <div class="card-flip">${cardHTML(ch.c1,ch.s1,"lg")}</div>
+        <div class="card-flip" style="animation-delay:0.15s">${cardHTML(ch.c2,ch.s2,"lg")}</div>
+        <div style="flex:1">
+          <div style="color:#c9a84c;font-size:11px;font-weight:700;font-family:'Playfair Display',serif;text-transform:uppercase;letter-spacing:1px">${ch.pos}</div>
+          <div style="color:#8a9a8a;font-size:11px;margin-top:2px">${ch.facing?"Facing a raise":"Folded to you"} · ${ch.table}-max</div>
+        </div>
+      </div>
+      <div style="color:#d0c8b8;font-size:14px;line-height:1.5;margin-bottom:16px">${ch.q}</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        ${ch.options.map((opt,i)=>{
+          const letter = ["A","B","C","D"][i];
+          const answered = completed;
+          const isThis = answered && savedAnswer === i;
+          const isRight = i === ch.correct;
+          const cls = answered ? (isRight ? "correct" : (isThis ? "wrong" : "")) : "";
+          return `<button class="quiz-option ${cls}" data-daily-opt="${i}" ${answered?"disabled":""}>
+            <div class="opt-letter">${letter}</div>
+            <div style="flex:1;color:${answered&&isRight?"#27ae60":answered&&isThis?"#c0392b":"#d0c8b8"};font-size:13px;font-weight:600">${opt}</div>
+            ${answered&&isRight?'<span style="font-size:16px">✓</span>':""}
+            ${answered&&isThis&&!isRight?'<span style="font-size:16px">✗</span>':""}
+          </button>`;
+        }).join("")}
+      </div>
+    </div>
+
+    ${completed?`<div class="panel-gold slide-up" id="daily-explain">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span style="font-size:20px">${isCorrect?"🎉":"💡"}</span>
+        <span style="color:${isCorrect?"#27ae60":"#c0392b"};font-size:16px;font-weight:700;font-family:'Playfair Display',serif">${isCorrect?"Correct!":"Not quite"}</span>
+      </div>
+      <div style="color:#b0a898;font-size:13px;line-height:1.6">${ch.explain}</div>
+      <div style="text-align:center;margin-top:16px;color:#5a6a5a;font-size:11px">Come back tomorrow for a new challenge!</div>
+    </div>`:""}
+  </div>`;
+}
+
+function renderQuiz(){
+  const s = state;
+  if(s.qz_done){
+    const pct = s.qz_total > 0 ? Math.round((s.qz_score/s.qz_total)*100) : 0;
+    const circumference = 2 * Math.PI * 25;
+    const offset = circumference - (pct/100) * circumference;
+    return `<div class="slide-up" style="display:flex;flex-direction:column;gap:20px;padding-bottom:40px;text-align:center">
+      <div style="padding:24px 0">
+        <div style="font-size:48px;margin-bottom:8px">${pct>=80?"🏆":pct>=60?"⭐":pct>=40?"👍":"📚"}</div>
+        <div style="font-size:24px;font-weight:900;font-family:'Playfair Display',serif;color:#f0d78c;margin-bottom:4px">Quiz Complete!</div>
+        <div style="color:#8a9a8a;font-size:13px">${pct>=80?"Amazing! You're a shark.":pct>=60?"Solid play!":pct>=40?"Getting there.":"Keep studying!"}</div>
+      </div>
+      <div style="display:flex;justify-content:center">
+        <svg width="120" height="120" style="transform:rotate(-90deg)">
+          <circle cx="60" cy="60" r="25" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="6"/>
+          <circle cx="60" cy="60" r="25" fill="none" stroke="${pct>=80?"#27ae60":pct>=60?"#c9a84c":pct>=40?"#e67e22":"#c0392b"}" stroke-width="6" stroke-linecap="round" class="progress-ring" stroke-dasharray="${circumference}" stroke-dashoffset="${offset}" style="animation:progressFill 1s ease"/>
+        </svg>
+        <div style="position:absolute;margin-top:38px;font-size:28px;font-weight:900;font-family:'Playfair Display',serif;color:#f0d78c">${pct}%</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+        <div class="result-box"><div class="label">Score</div><div class="value" style="color:#27ae60">${s.qz_score}/${s.qz_total}</div></div>
+        <div class="result-box"><div class="label">Streak</div><div class="value" style="color:#f0d78c">🔥 ${s.qz_bestStreak}</div></div>
+        <div class="result-box"><div class="label">Accuracy</div><div class="value" style="color:#c9a84c">${pct}%</div></div>
+      </div>
+      <button id="qz-restart" class="gold-btn-xl">Play Again</button>
+    </div>`;
+  }
+
+  // Shuffle scenarios on first load
+  if(!state._qzOrder) {
+    state._qzOrder = [...Array(QUIZ_SCENARIOS.length).keys()].sort(()=>Math.random()-0.5).slice(0,10);
+  }
+  const scIdx = state._qzOrder[s.qz_current];
+  const sc = QUIZ_SCENARIOS[scIdx];
+  if(!sc){ setState({qz_done:true}); return ""; }
+
+  return `<div class="slide-up" style="display:flex;flex-direction:column;gap:20px;padding-bottom:40px">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div style="color:#8a9a8a;font-size:12px">Question <span style="color:#f0d78c;font-weight:700">${s.qz_current+1}</span> of ${state._qzOrder.length}</div>
+      <div style="display:flex;gap:8px">
+        <span class="streak-badge" style="background:rgba(39,174,96,0.12);border:1px solid rgba(39,174,96,0.25);color:#27ae60">✓ ${s.qz_score}</span>
+        ${s.qz_streak>=2?`<span class="streak-badge streak-glow" style="background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.25);color:#f0d78c">🔥 ${s.qz_streak}</span>`:""}
+      </div>
+    </div>
+
+    <div style="width:100%;height:4px;border-radius:2px;background:rgba(255,255,255,0.08);overflow:hidden">
+      <div style="height:100%;width:${((s.qz_current)/state._qzOrder.length)*100}%;background:linear-gradient(90deg,#c9a84c,#f0d78c);border-radius:2px;transition:width 0.5s ease"></div>
+    </div>
+
+    <div class="panel" style="position:relative;overflow:hidden" id="qz-panel">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+        <div class="card-flip">${cardHTML(sc.c1,sc.s1,"lg")}</div>
+        <div class="card-flip" style="animation-delay:0.15s">${cardHTML(sc.c2,sc.s2,"lg")}</div>
+        <div style="flex:1">
+          <div style="color:#c9a84c;font-size:11px;font-weight:700;font-family:'Playfair Display',serif;text-transform:uppercase;letter-spacing:1px">${sc.pos}</div>
+          <div style="color:#8a9a8a;font-size:11px;margin-top:2px">${sc.facing?"Facing a raise":"Folded to you"} · ${sc.table}-max</div>
+        </div>
+      </div>
+      <div style="color:#d0c8b8;font-size:14px;line-height:1.5;margin-bottom:16px">${sc.q}</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        ${sc.options.map((opt,i)=>{
+          const letter = ["A","B","C","D"][i];
+          const answered = s.qz_answered !== null;
+          const isThis = answered && s.qz_answered === i;
+          const isRight = i === sc.correct;
+          const cls = answered ? (isRight ? "correct" : (isThis ? "wrong" : "")) : "";
+          return `<button class="quiz-option ${cls}" data-qz-opt="${i}" ${answered?"disabled":""}>
+            <div class="opt-letter">${letter}</div>
+            <div style="flex:1;color:${answered&&isRight?"#27ae60":answered&&isThis?"#c0392b":"#d0c8b8"};font-size:13px;font-weight:600">${opt}</div>
+            ${answered&&isRight?'<span style="font-size:16px">✓</span>':""}
+            ${answered&&isThis&&!isRight?'<span style="font-size:16px">✗</span>':""}
+          </button>`;
+        }).join("")}
+      </div>
+    </div>
+
+    ${s.qz_answered!==null?`<div class="panel-gold slide-up">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span style="font-size:20px">${s.qz_answered===sc.correct?"🎉":"💡"}</span>
+        <span style="color:${s.qz_answered===sc.correct?"#27ae60":"#c0392b"};font-size:16px;font-weight:700;font-family:'Playfair Display',serif">${s.qz_answered===sc.correct?"Correct!"+(s.qz_streak>=3?" 🔥"+s.qz_streak+" streak!":""):"Not quite"}</span>
+      </div>
+      <div style="color:#b0a898;font-size:13px;line-height:1.6">${sc.explain}</div>
+      <button id="qz-next" class="gold-btn-xl" style="margin-top:16px">${s.qz_current+1>=state._qzOrder.length?"See Results":"Next Question →"}</button>
+    </div>`:""}
+  </div>`;
+}
+
+function spawnConfetti(el){
+  const colors=["#c9a84c","#f0d78c","#27ae60","#e74c3c","#3498db","#f39c12"];
+  const rect = el.getBoundingClientRect();
+  for(let i=0;i<12;i++){
+    const c=document.createElement("div");
+    c.className="confetti";
+    c.style.background=colors[Math.floor(Math.random()*colors.length)];
+    c.style.left=(rect.left+rect.width/2+((Math.random()-0.5)*80))+"px";
+    c.style.top=(rect.top-10)+"px";
+    c.style.animationDelay=(Math.random()*0.3)+"s";
+    c.style.position="fixed";
+    c.style.zIndex="9999";
+    document.body.appendChild(c);
+    setTimeout(()=>c.remove(),1500);
+  }
+}
+
 function renderPreflop(){
   const s=state;
   const both=s.pf_c1r&&s.pf_c1s&&s.pf_c2r&&s.pf_c2s;
@@ -792,6 +1054,61 @@ function bindAll(){
     setState({tab:k,showUpgrade:false});
   }));
   document.getElementById("upgrade-btn")?.addEventListener("click",()=>setState({showPaywall:true}));
+
+  // Daily Challenge
+  document.querySelectorAll("[data-daily-opt]").forEach(b=>b.addEventListener("click",()=>{
+    const chosen = parseInt(b.dataset.dailyOpt);
+    const ch = getDailyChallenge();
+    const isCorrect = chosen === ch.correct;
+    // Save to localStorage
+    localStorage.setItem(getDailyKey(), chosen.toString());
+    // Update streak
+    const streakData = JSON.parse(localStorage.getItem("poker_streak")||'{"count":0,"best":0,"lastDate":""}');
+    const today = new Date().toISOString().slice(0,10);
+    const yesterday = new Date(Date.now()-86400000).toISOString().slice(0,10);
+    if(isCorrect){
+      if(streakData.lastDate===yesterday||streakData.lastDate===""){
+        streakData.count++;
+      } else if(streakData.lastDate!==today){
+        streakData.count=1;
+      }
+      streakData.lastDate=today;
+      if(streakData.count>streakData.best) streakData.best=streakData.count;
+    } else {
+      if(streakData.lastDate!==today){ streakData.count=0; }
+      streakData.lastDate=today;
+    }
+    localStorage.setItem("poker_streak",JSON.stringify(streakData));
+    // Confetti on correct
+    if(isCorrect){ setTimeout(()=>{ const panel=document.querySelector(".panel"); if(panel) spawnConfetti(panel); },100); }
+    render();
+  }));
+
+  // Quiz
+  document.querySelectorAll("[data-qz-opt]").forEach(b=>b.addEventListener("click",()=>{
+    const chosen = parseInt(b.dataset.qzOpt);
+    const scIdx = state._qzOrder[state.qz_current];
+    const sc = QUIZ_SCENARIOS[scIdx];
+    const isCorrect = chosen === sc.correct;
+    const newStreak = isCorrect ? state.qz_streak + 1 : 0;
+    setState({
+      qz_answered: chosen,
+      qz_score: state.qz_score + (isCorrect ? 1 : 0),
+      qz_total: state.qz_total + 1,
+      qz_streak: newStreak,
+      qz_bestStreak: Math.max(state.qz_bestStreak, newStreak),
+    });
+    if(isCorrect){ setTimeout(()=>{ const panel=document.getElementById("qz-panel"); if(panel) spawnConfetti(panel); },100); }
+  }));
+  document.getElementById("qz-next")?.addEventListener("click",()=>{
+    const next = state.qz_current + 1;
+    if(next >= state._qzOrder.length){ setState({qz_done:true, qz_answered:null}); }
+    else { setState({qz_current:next, qz_answered:null}); }
+  });
+  document.getElementById("qz-restart")?.addEventListener("click",()=>{
+    state._qzOrder = null;
+    setState({qz_current:0, qz_answered:null, qz_score:0, qz_total:0, qz_streak:0, qz_bestStreak:0, qz_done:false});
+  });
 
   // Preflop
   document.querySelectorAll("[data-pf-r]").forEach(b=>b.addEventListener("click",()=>{
